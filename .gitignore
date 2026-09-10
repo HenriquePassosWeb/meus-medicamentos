@@ -1,0 +1,30 @@
+# ===== Dependências =====
+node_modules/
+**/node_modules/
+
+# ===== Segredos e ambiente (NUNCA versionar) =====
+.env
+**/.env
+.env.local
+**/.env.local
+*.key
+
+# ===== Logs =====
+*.log
+npm-debug.log*
+
+# ===== Sistema operacional / editor =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ===== Arquivos temporários =====
+*.tmp
+_tmp/
+
+# ===== Artefatos internos do Kiro (não fazem parte do produto) =====
+.kiro/
+
+# ===== Documentação interna de trabalho (contém notas/credenciais do projeto) =====
+V3-SUPABASE-SETUP.md

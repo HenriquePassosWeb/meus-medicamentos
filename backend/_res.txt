@@ -1,0 +1,3 @@
+T1 OK: Ibuprofeno
+T2 OK: Ibuprofeno
+T3 OK: Ibuprofeno
