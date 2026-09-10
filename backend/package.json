@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test \"../frontend/js/*.test.mjs\""
+    "test": "node --test ../frontend/js/meds.regras.test.mjs"
   },
   "dependencies": {
     "cors": "^2.8.5",
