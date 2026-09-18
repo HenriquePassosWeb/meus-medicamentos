@@ -35,6 +35,12 @@
           <p class="auth-erro" id="aErro" hidden></p>
           <button type="submit" class="btn btn-primario btn-bloco">${modoCadastro ? 'Criar conta' : 'Entrar'}</button>
         </form>
+
+        <div class="auth-ou"><span>ou</span></div>
+        <button type="button" class="btn btn-google btn-bloco" id="aGoogle">
+          <span class="btn-google-icone">G</span> Entrar com Google
+        </button>
+
         <p class="auth-troca">
           ${modoCadastro ? 'Já tem conta?' : 'Ainda não tem conta?'}
           <a href="#" id="aTroca">${modoCadastro ? 'Entrar' : 'Cadastre-se'}</a>
@@ -45,6 +51,18 @@
         ev.preventDefault();
         modoCadastro = !modoCadastro;
         render();
+      });
+
+      document.getElementById('aGoogle').addEventListener('click', async () => {
+        const erro = document.getElementById('aErro');
+        erro.hidden = true;
+        try {
+          // Redireciona para o Google; o retorno é tratado no boot (onAuthStateChange).
+          await Auth.entrarComGoogle();
+        } catch (e) {
+          erro.textContent = e.message;
+          erro.hidden = false;
+        }
       });
 
       function mostrarConfirmacaoEmail(email) {

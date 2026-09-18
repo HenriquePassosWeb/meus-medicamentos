@@ -71,6 +71,7 @@
       hora: r.hora,
       repeticao: r.repeticao,
       recorrencia: r.recorrencia,
+      googleEventId: r.google_event_id || null,
       criadoEm: r.criado_em,
     };
   }
@@ -84,6 +85,7 @@
       hora: a.hora || null,
       repeticao: a.repeticao || null,
       recorrencia: a.recorrencia || null,
+      google_event_id: a.googleEventId || null,
     };
   }
 
@@ -141,7 +143,7 @@
       // Não trazemos "foto" na carga inicial: a coluna guarda só o caminho no
       // Storage e a imagem é carregada sob demanda (urlDaFoto) ao abrir o detalhe.
       client.from('medicamentos').select('id, usuario_id, nome, tipo, quantidade, nivel, minimo, unidade, validade, obs, foto, bula, criado_em').eq('usuario_id', usuarioId).order('criado_em', { ascending: true }),
-      client.from('agendamentos').select('id, usuario_id, med_id, med_nome, hora, repeticao, recorrencia, criado_em').eq('usuario_id', usuarioId).order('hora', { ascending: true }),
+      client.from('agendamentos').select('id, usuario_id, med_id, med_nome, hora, repeticao, recorrencia, google_event_id, criado_em').eq('usuario_id', usuarioId).order('hora', { ascending: true }),
       client.from('historico').select('id, usuario_id, med_id, med_nome, tipo, descricao, em').eq('usuario_id', usuarioId).order('em', { ascending: false }).limit(300),
       client.from('tipos_custom').select('id, usuario_id, chave, rotulo, icone, unidade_padrao').eq('usuario_id', usuarioId).order('rotulo', { ascending: true }),
     ]);

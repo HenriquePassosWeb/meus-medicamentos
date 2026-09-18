@@ -26,5 +26,8 @@ _tmp/
 # ===== Artefatos internos do Kiro (não fazem parte do produto) =====
 .kiro/
 
-# ===== Documentação interna de trabalho (contém notas/credenciais do projeto) =====
+# ===== Documentação interna de trabalho (não versionar) =====
+# Notas de arquitetura, planos e guias internos. O README.md continua versionado.
 V3-SUPABASE-SETUP.md
+DEPLOY-RENDER.md
+INTEGRACAO-GOOGLE-AGENDA.md

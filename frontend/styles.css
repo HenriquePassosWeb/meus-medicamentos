@@ -265,6 +265,28 @@ body.com-nav #tela {
 .auth-troca { margin-top: 18px; font-size: 14px; color: var(--cor-texto-suave); }
 .auth-troca a { color: var(--cor-primaria); font-weight: 600; text-decoration: none; }
 
+/* Separador "ou" e botão do Google na tela de login */
+.auth-ou {
+  width: 100%; max-width: 340px; display: flex; align-items: center;
+  gap: 12px; margin: 18px 0; color: var(--cor-texto-suave); font-size: 13px;
+}
+.auth-ou::before, .auth-ou::after {
+  content: ''; flex: 1; height: 1px; background: var(--cor-borda);
+}
+.btn-google {
+  width: 100%; max-width: 340px;
+  background: #fff; color: var(--cor-texto);
+  border: 1px solid var(--cor-borda);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+.btn-google:active { background: var(--cor-fundo); }
+.btn-google-icone {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; color: #4285F4; font-weight: 700;
+  border: 1px solid var(--cor-borda); font-size: 14px;
+}
+
 /* ===== Modal ===== */
 .modal { position: fixed; inset: 0; z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
 .modal-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.5); animation: fade 0.2s ease; }
