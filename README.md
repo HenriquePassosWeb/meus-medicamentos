@@ -1,4 +1,4 @@
-# Meus Medicamentos v3
+# Meus Medicamentos
 
 App de controle de estoque de medicamentos em casa, com sincronização na nuvem
 (Supabase), fotos, lembretes e compartilhamento de estoque entre usuários.
