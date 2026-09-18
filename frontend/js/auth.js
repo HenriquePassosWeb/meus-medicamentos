@@ -13,6 +13,15 @@
   // Cache síncrono do usuário logado: { id, email, nome } ou null.
   let usuarioCache = null;
 
+  // Token de acesso do Google (provider_token). Só existe logo após o login com
+  // Google e dura ~1h. É usado para chamar a API do Google Agenda. O Supabase NÃO
+  // renova automaticamente; se expirar, o usuário precisa reconectar com o Google.
+  let tokenGoogleCache = null;
+
+  function tokenGoogle() {
+    return tokenGoogleCache;
+  }
+
   function mapearUsuario(user) {
     if (!user) return null;
     const nome =
@@ -27,9 +36,24 @@
   async function boot() {
     const { data } = await client.auth.getSession();
     usuarioCache = mapearUsuario(data.session ? data.session.user : null);
+    tokenGoogleCache = data.session ? data.session.provider_token || null : null;
 
-    client.auth.onAuthStateChange((_evento, sessao) => {
+    client.auth.onAuthStateChange(async (evento, sessao) => {
       usuarioCache = mapearUsuario(sessao ? sessao.user : null);
+      // Captura o token do Google quando presente (vem no login com Google).
+      if (sessao && sessao.provider_token) {
+        tokenGoogleCache = sessao.provider_token;
+      }
+      if (!sessao) tokenGoogleCache = null;
+      // Ao entrar (inclusive na volta do login com Google), carrega os dados e
+      // leva o app para a tela inicial. Sem isso, o retorno do OAuth ficaria na
+      // tela de login mesmo com sessão válida.
+      if (evento === 'SIGNED_IN') {
+        if (global.Meds) await global.Meds.carregar();
+        if (global.location.hash !== '#/inicio') {
+          global.location.hash = '#/inicio';
+        }
+      }
     });
 
     if (usuarioCache && global.Meds) {
@@ -74,6 +98,26 @@
     return usuarioCache;
   }
 
+  // Login com Google (OAuth). Redireciona para o Google e volta para o app.
+  // Pedimos também o escopo do Google Agenda (calendar.events) para poder, no
+  // futuro, gravar lembretes direto na agenda do usuário sem ele sair do app.
+  // access_type=offline + prompt=consent garantem o refresh token para uso da API.
+  async function entrarComGoogle() {
+    const { error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        scopes: 'https://www.googleapis.com/auth/calendar.events',
+        redirectTo: global.location.origin,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    });
+    if (error) throw new Error(traduzirErro(error));
+    // O navegador é redirecionado para o Google; o retorno é tratado no boot().
+  }
+
   async function sair() {
     await client.auth.signOut();
     usuarioCache = null;
@@ -107,6 +151,8 @@
     boot,
     registrar,
     entrar,
+    entrarComGoogle,
+    tokenGoogle,
     sair,
     usuarioAtual,
     estaLogado,

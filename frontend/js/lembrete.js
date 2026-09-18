@@ -62,12 +62,12 @@
             <input type="number" id="lemDuracao" class="campo-input" min="1" step="1" placeholder="ex: 7 (deixe vazio p/ sem fim)" inputmode="numeric" />
           </label>
 
-          <p class="lem-aviso">O lembrete é criado no seu Google Agenda. É ele quem vai te notificar no horário, mesmo com este app fechado.</p>
+          <p class="lem-aviso">O lembrete é salvo no seu Google Agenda automaticamente. É ele quem vai te notificar no horário, mesmo com este app fechado.</p>
 
           <div id="lemMultiplos" class="lem-multiplos" hidden></div>
 
           <div class="form-acoes">
-            <button type="button" class="btn btn-primario" id="lemCriar">Abrir no Google Agenda</button>
+            <button type="button" class="btn btn-primario" id="lemCriar">Salvar lembrete</button>
           </div>
         </div>
       </div>
@@ -225,33 +225,65 @@
     const btnCriar = document.getElementById('lemCriar');
     btnCriar.disabled = true;
     try {
-      // Salva um agendamento por horário (persistido no medicamento).
+      // Para cada horário: cria o evento no Google Agenda (via API) e salva no
+      // nosso banco (para o app exibir a lista de lembretes).
       for (const h of horarios) {
+        const hora = p(h.hora) + ':' + p(h.minuto);
+        let googleEventId = null;
+        try {
+          googleEventId = await global.AgendaGoogle.criarEvento({
+            titulo,
+            detalhes,
+            hora: h.hora,
+            minuto: h.minuto,
+            recorrencia,
+          });
+        } catch (e) {
+          if (e instanceof global.AgendaGoogle.SemTokenGoogle) {
+            // Sem token do Google válido: oferece reconectar e interrompe.
+            btnCriar.disabled = false;
+            pedirReconexaoGoogle(e.message);
+            return;
+          }
+          throw e; // outro erro: trata no catch externo
+        }
+
         await Meds.adicionarAgendamento({
           medId: medAtual.id,
           medNome: medAtual.nome,
-          hora: p(h.hora) + ':' + p(h.minuto),
+          hora,
           repeticao: descricaoRepeticao,
           recorrencia,
+          googleEventId,
         });
       }
     } catch (e) {
-      UI.toast(e.message || 'Não foi possível salvar o agendamento');
+      UI.toast(e.message || 'Não foi possível salvar o lembrete');
       btnCriar.disabled = false;
       return;
     }
     btnCriar.disabled = false;
     if (aoSalvarCallback) aoSalvarCallback();
+    UI.toast('Lembrete salvo no seu Google Agenda');
+    fechar();
+  }
 
-    if (horarios.length === 1) {
-      global.open(linkEvento(titulo, detalhes, horarios[0].hora, horarios[0].minuto, recorrencia), '_blank', 'noopener');
-      UI.toast('Agendamento salvo. Abrindo o Google Agenda...');
-      fechar();
-      return;
-    }
-
-    // Modo intervalo: salvo. Abre um link por horário para adicionar ao Google.
-    confirmarMultiplos(titulo, detalhes, horarios, recorrencia);
+  // Exibe um aviso pedindo para reconectar com o Google (token expirou/ausente).
+  function pedirReconexaoGoogle(mensagem) {
+    const box = document.getElementById('lemMultiplos');
+    box.innerHTML = '';
+    box.hidden = false;
+    box.appendChild(el('p', 'lem-multi-titulo', mensagem || 'Conecte sua conta Google para sincronizar.'));
+    const btn = el('button', 'btn btn-primario btn-bloco', 'Conectar com Google');
+    btn.type = 'button';
+    btn.addEventListener('click', async () => {
+      try {
+        await global.Auth.entrarComGoogle(); // redireciona para o Google e volta
+      } catch (e) {
+        UI.toast(e.message || 'Não foi possível conectar com o Google');
+      }
+    });
+    box.appendChild(btn);
   }
 
   function descreverRepeticao(modo, duracao) {
