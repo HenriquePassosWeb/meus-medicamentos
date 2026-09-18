@@ -488,6 +488,22 @@ textarea.campo-input { resize: vertical; }
 .ag-card-acoes { display: flex; gap: 8px; margin-top: 12px; }
 .ag-card-acoes .btn { flex: 1; text-align: center; text-decoration: none; }
 
+/* Grupo de agendamentos por medicamento */
+.ag-grupo {
+  list-style: none;
+  background: var(--cor-primaria-clara);
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 4px;
+}
+.ag-grupo-titulo {
+  font-size: 16px; font-weight: 700; color: var(--cor-primaria-escura);
+  padding: 4px 4px 10px;
+}
+.ag-grupo-cards { display: flex; flex-direction: column; gap: 10px; }
+/* Dentro do grupo, o card não precisa de sombra forte (o grupo já delimita) */
+.ag-grupo .ag-card { box-shadow: none; border: 1px solid var(--cor-borda); }
+
 /* ===== Agendamentos (no detalhe) ===== */
 .ag-linha {
   display: flex; align-items: center; justify-content: space-between;

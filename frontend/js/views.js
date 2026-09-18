@@ -350,49 +350,74 @@
       </main>`;
 
     function atualizar() {
-      const ags = Meds.listarAgendamentos()
-        .slice()
-        .sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
+      const ags = Meds.listarAgendamentos().slice();
       const lista = document.getElementById('agLista');
       lista.innerHTML = '';
       document.getElementById('agVazio').hidden = ags.length > 0;
 
+      // Agrupa os agendamentos por medicamento (medNome). Dentro de cada grupo,
+      // ordena por horário. Os grupos ficam em ordem alfabética.
+      const grupos = new Map();
       ags.forEach((a) => {
-        const li = el('li', 'ag-card');
+        const chave = a.medNome || 'Sem nome';
+        if (!grupos.has(chave)) grupos.set(chave, []);
+        grupos.get(chave).push(a);
+      });
 
-        const topo = el('div', 'ag-card-topo');
-        topo.appendChild(el('span', 'ag-card-hora', a.hora));
-        const info = el('div', 'ag-card-info');
-        info.appendChild(el('div', 'ag-card-nome', a.medNome));
-        info.appendChild(el('div', 'ag-card-rep', a.repeticao || ''));
-        topo.appendChild(info);
-        li.appendChild(topo);
+      const nomesOrdenados = Array.from(grupos.keys()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
-        const acoes = el('div', 'ag-card-acoes');
-        const sinc = document.createElement('a');
-        sinc.href = global.Lembrete.linkDoAgendamento(a);
-        sinc.target = '_blank';
-        sinc.rel = 'noopener';
-        sinc.className = 'btn btn-secundario btn-mini';
-        sinc.textContent = '📅 Google Agenda';
-        acoes.appendChild(sinc);
+      nomesOrdenados.forEach((nome) => {
+        const doGrupo = grupos.get(nome).sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
 
-        const rem = el('button', 'btn btn-mini btn-remover-foto', 'Remover');
-        rem.type = 'button';
-        rem.addEventListener('click', () => {
-          if (!confirm('Remover o agendamento de ' + a.hora + ' (' + a.medNome + ')?')) return;
-          Meds.removerAgendamento(a.id);
-          UI.toast('Agendamento removido');
-          atualizar();
-        });
-        acoes.appendChild(rem);
-        li.appendChild(acoes);
+        const grupo = el('li', 'ag-grupo');
+        grupo.appendChild(el('div', 'ag-grupo-titulo', '💊 ' + nome));
 
-        lista.appendChild(li);
+        const cards = el('div', 'ag-grupo-cards');
+        doGrupo.forEach((a) => cards.appendChild(cardAgendamento(a, atualizar)));
+        grupo.appendChild(cards);
+
+        lista.appendChild(grupo);
       });
     }
 
     atualizar();
+  }
+
+  // Monta um card de horário (sem o nome do medicamento, que já está no grupo).
+  function cardAgendamento(a, aoMudar) {
+    const li = el('div', 'ag-card');
+
+    const topo = el('div', 'ag-card-topo');
+    topo.appendChild(el('span', 'ag-card-hora', a.hora));
+    const info = el('div', 'ag-card-info');
+    info.appendChild(el('div', 'ag-card-rep', a.repeticao || ''));
+    topo.appendChild(info);
+    li.appendChild(topo);
+
+    const acoes = el('div', 'ag-card-acoes');
+    const sinc = document.createElement('a');
+    sinc.href = global.Lembrete.linkDoAgendamento(a);
+    sinc.target = '_blank';
+    sinc.rel = 'noopener';
+    sinc.className = 'btn btn-secundario btn-mini';
+    sinc.textContent = '📅 Google Agenda';
+    acoes.appendChild(sinc);
+
+    const rem = el('button', 'btn btn-mini btn-remover-foto', 'Remover');
+    rem.type = 'button';
+    rem.addEventListener('click', async () => {
+      if (!confirm('Remover o agendamento de ' + a.hora + ' (' + a.medNome + ')?')) return;
+      try {
+        await Meds.removerAgendamento(a.id);
+        UI.toast('Agendamento removido');
+        if (aoMudar) aoMudar();
+      } catch (e) {
+        UI.toast(e.message || 'Não foi possível remover');
+      }
+    });
+    acoes.appendChild(rem);
+    li.appendChild(acoes);
+    return li;
   }
 
   // ---------- COMPARTILHAR ----------
