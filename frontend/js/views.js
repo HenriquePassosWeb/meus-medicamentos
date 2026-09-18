@@ -368,56 +368,62 @@
 
       nomesOrdenados.forEach((nome) => {
         const doGrupo = grupos.get(nome).sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
-
-        const grupo = el('li', 'ag-grupo');
-        grupo.appendChild(el('div', 'ag-grupo-titulo', '💊 ' + nome));
-
-        const cards = el('div', 'ag-grupo-cards');
-        doGrupo.forEach((a) => cards.appendChild(cardAgendamento(a, atualizar)));
-        grupo.appendChild(cards);
-
-        lista.appendChild(grupo);
+        lista.appendChild(grupoAgendamento(nome, doGrupo, atualizar));
       });
     }
 
     atualizar();
   }
 
-  // Monta um card de horário (sem o nome do medicamento, que já está no grupo).
-  function cardAgendamento(a, aoMudar) {
-    const li = el('div', 'ag-card');
+  // Monta o grupo de um medicamento: título, repetição, horários em "pílulas"
+  // (cada uma com um ✕ para remover só aquele horário) e "Remover todos".
+  function grupoAgendamento(nome, doGrupo, aoMudar) {
+    const grupo = el('li', 'ag-grupo');
+    grupo.appendChild(el('div', 'ag-grupo-titulo', '💊 ' + nome));
 
-    const topo = el('div', 'ag-card-topo');
-    topo.appendChild(el('span', 'ag-card-hora', a.hora));
-    const info = el('div', 'ag-card-info');
-    info.appendChild(el('div', 'ag-card-rep', a.repeticao || ''));
-    topo.appendChild(info);
-    li.appendChild(topo);
+    // A repetição costuma ser a mesma para todos os horários do grupo.
+    const repeticao = (doGrupo[0] && doGrupo[0].repeticao) || '';
+    if (repeticao) grupo.appendChild(el('div', 'ag-grupo-rep', repeticao));
 
-    const acoes = el('div', 'ag-card-acoes');
-    const sinc = document.createElement('a');
-    sinc.href = global.Lembrete.linkDoAgendamento(a);
-    sinc.target = '_blank';
-    sinc.rel = 'noopener';
-    sinc.className = 'btn btn-secundario btn-mini';
-    sinc.textContent = '📅 Google Agenda';
-    acoes.appendChild(sinc);
+    const pilulas = el('div', 'ag-pilulas');
+    doGrupo.forEach((a) => {
+      const pilula = el('span', 'ag-pilula');
+      pilula.appendChild(el('span', 'ag-pilula-hora', a.hora));
+      const x = el('button', 'ag-pilula-x', '✕');
+      x.type = 'button';
+      x.title = 'Remover ' + a.hora;
+      x.addEventListener('click', async () => {
+        if (!confirm('Remover o horário ' + a.hora + ' de ' + nome + '?')) return;
+        try {
+          await Meds.removerAgendamento(a.id);
+          UI.toast('Horário removido');
+          if (aoMudar) aoMudar();
+        } catch (e) {
+          UI.toast(e.message || 'Não foi possível remover');
+        }
+      });
+      pilula.appendChild(x);
+      pilulas.appendChild(pilula);
+    });
+    grupo.appendChild(pilulas);
 
-    const rem = el('button', 'btn btn-mini btn-remover-foto', 'Remover');
-    rem.type = 'button';
-    rem.addEventListener('click', async () => {
-      if (!confirm('Remover o agendamento de ' + a.hora + ' (' + a.medNome + ')?')) return;
+    const remTodos = el('button', 'btn btn-mini btn-remover-foto ag-grupo-remover', 'Remover todos os horários');
+    remTodos.type = 'button';
+    remTodos.addEventListener('click', async () => {
+      if (!confirm('Remover TODOS os horários de ' + nome + '?')) return;
       try {
-        await Meds.removerAgendamento(a.id);
-        UI.toast('Agendamento removido');
+        for (const a of doGrupo) {
+          await Meds.removerAgendamento(a.id);
+        }
+        UI.toast('Horários removidos');
         if (aoMudar) aoMudar();
       } catch (e) {
         UI.toast(e.message || 'Não foi possível remover');
       }
     });
-    acoes.appendChild(rem);
-    li.appendChild(acoes);
-    return li;
+    grupo.appendChild(remTodos);
+
+    return grupo;
   }
 
   // ---------- COMPARTILHAR ----------

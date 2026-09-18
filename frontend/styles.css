@@ -491,18 +491,35 @@ textarea.campo-input { resize: vertical; }
 /* Grupo de agendamentos por medicamento */
 .ag-grupo {
   list-style: none;
-  background: var(--cor-primaria-clara);
+  background: var(--cor-superficie);
   border-radius: 16px;
-  padding: 12px;
-  margin-bottom: 4px;
+  padding: 16px;
+  box-shadow: var(--sombra);
 }
 .ag-grupo-titulo {
-  font-size: 16px; font-weight: 700; color: var(--cor-primaria-escura);
-  padding: 4px 4px 10px;
+  font-size: 16px; font-weight: 700; color: var(--cor-texto);
 }
-.ag-grupo-cards { display: flex; flex-direction: column; gap: 10px; }
-/* Dentro do grupo, o card não precisa de sombra forte (o grupo já delimita) */
-.ag-grupo .ag-card { box-shadow: none; border: 1px solid var(--cor-borda); }
+.ag-grupo-rep {
+  font-size: 13px; color: var(--cor-texto-suave); margin-top: 2px; margin-bottom: 12px;
+}
+/* Horários em "pílulas" compactas */
+.ag-pilulas { display: flex; flex-wrap: wrap; gap: 8px; }
+.ag-pilula {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--cor-primaria-clara); color: var(--cor-primaria-escura);
+  font-weight: 700; font-size: 15px;
+  padding: 6px 8px 6px 12px; border-radius: 999px;
+}
+.ag-pilula-hora { line-height: 1; }
+.ag-pilula-x {
+  border: none; background: rgba(15, 118, 110, 0.15); color: var(--cor-primaria-escura);
+  width: 20px; height: 20px; border-radius: 50%; cursor: pointer;
+  font-size: 11px; line-height: 1; display: flex; align-items: center; justify-content: center;
+}
+.ag-pilula-x:active { background: rgba(15, 118, 110, 0.3); }
+.ag-grupo-remover {
+  margin-top: 14px; width: 100%;
+}
 
 /* ===== Agendamentos (no detalhe) ===== */
 .ag-linha {
