@@ -118,6 +118,6 @@ process.on('uncaughtException', (err) => {
 });
 
 app.listen(PORT, () => {
-  console.log('Meus Medicamentos v2 rodando em http://localhost:' + PORT);
+  console.log('Meus Medicamentos rodando na porta ' + PORT);
   console.log('Frontend servido a partir de ../frontend');
 });
