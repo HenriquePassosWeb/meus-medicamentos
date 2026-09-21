@@ -26,6 +26,11 @@
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
+      // Implicit flow: o link do e-mail traz os tokens direto no hash da URL
+      // (#access_token=...&type=recovery). É o fluxo correto para SPAs sem
+      // servidor (sem backend para trocar o code por tokens, como no PKCE).
+      // O PKCE exigiria uma rota de callback no servidor — não temos.
+      flowType: 'implicit',
     },
   });
 
