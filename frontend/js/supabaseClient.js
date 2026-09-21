@@ -13,6 +13,16 @@
   const SUPABASE_URL = 'https://zfvlvhqwrbarrtztophk.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_NxuKgsHGFlZCAdabhRTo7Q_pHL2tRl4';
 
+  // IMPORTANTE: Capturamos o hash ANTES de criar o cliente Supabase.
+  // O Supabase com detectSessionInUrl=true processa e LIMPA o hash durante
+  // a criação do cliente. Se não capturarmos antes, perdemos a informação
+  // de que era um fluxo de recovery (type=recovery).
+  const hashOriginal = global.location.hash || '';
+  const ehRecovery = hashOriginal.includes('type=recovery');
+  
+  // Guardamos essa flag globalmente para o auth.js usar
+  global._supabaseRecoveryDetected = ehRecovery;
+
   if (!global.supabase || typeof global.supabase.createClient !== 'function') {
     console.error(
       'Biblioteca do Supabase não encontrada. ' +
