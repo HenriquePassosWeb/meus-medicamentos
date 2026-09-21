@@ -18,8 +18,17 @@
   // renova automaticamente; se expirar, o usuário precisa reconectar com o Google.
   let tokenGoogleCache = null;
 
+  // Flag para indicar que estamos em modo de recuperação de senha.
+  // Capturamos ANTES de qualquer processamento do Supabase, pois ele altera o hash.
+  let modoRecuperacao = false;
+
   function tokenGoogle() {
     return tokenGoogleCache;
+  }
+
+  // Retorna true se estamos no fluxo de recuperação de senha.
+  function emRecuperacao() {
+    return modoRecuperacao;
   }
 
   function mapearUsuario(user) {
@@ -34,17 +43,21 @@
   // Deve ser aguardado no boot do app (app.js) antes do primeiro render.
   // Se houver sessão, já carrega os dados do usuário (Meds.carregar) antes de retornar.
   async function boot() {
-    // Com implicit flow, o link de reset chega com tokens no hash:
-    // #access_token=...&refresh_token=...&type=recovery
-    // NÃO alteramos o hash aqui — o Supabase precisa ler os tokens do hash
-    // original antes de qualquer redirect. O onAuthStateChange dispara
-    // PASSWORD_RECOVERY assim que os tokens são processados, e aí redirecionamos.
-    const hashAtual = global.location.hash || '';
-    const ehRecovery = hashAtual.includes('type=recovery');
+    // A flag _supabaseRecoveryDetected é definida em supabaseClient.js ANTES
+    // do cliente Supabase ser criado (e antes dele limpar o hash).
+    // Isso garante que sabemos se era um fluxo de recovery mesmo após o Supabase
+    // ter processado e removido os tokens da URL.
+    modoRecuperacao = global._supabaseRecoveryDetected || false;
+    
+    // Debug: logar para diagnóstico
+    console.log('[Auth boot] modoRecuperacao (via flag):', modoRecuperacao);
+    console.log('[Auth boot] hash atual:', global.location.hash);
 
     // Registra o listener ANTES de chamar getSession, para não perder eventos
     // que disparem durante o processamento dos tokens da URL.
     client.auth.onAuthStateChange(async (evento, sessao) => {
+      console.log('[Auth] onAuthStateChange:', evento, sessao ? 'com sessão' : 'sem sessão');
+      
       usuarioCache = mapearUsuario(sessao ? sessao.user : null);
       if (sessao && sessao.provider_token) {
         tokenGoogleCache = sessao.provider_token;
@@ -52,17 +65,21 @@
       if (!sessao) tokenGoogleCache = null;
 
       // Supabase dispara PASSWORD_RECOVERY quando os tokens de reset foram
-      // processados com sucesso. Só agora é seguro redirecionar — a sessão
-      // temporária já está estabelecida.
+      // processados com sucesso. Redireciona para a tela de nova senha.
       if (evento === 'PASSWORD_RECOVERY') {
+        console.log('[Auth] PASSWORD_RECOVERY detectado, redirecionando para #/nova-senha');
+        modoRecuperacao = true;
         global.location.hash = '#/nova-senha';
         return;
       }
 
-      // SIGNED_IN: não redirecionar se já estamos na tela de nova senha
-      // (pode disparar junto com o PASSWORD_RECOVERY em algumas versões).
+      // SIGNED_IN: não redirecionar se estamos em modo de recuperação
+      // (a sessão é estabelecida antes do PASSWORD_RECOVERY em alguns casos).
       if (evento === 'SIGNED_IN') {
-        if (global.location.hash === '#/nova-senha') return;
+        if (modoRecuperacao || global.location.hash === '#/nova-senha') {
+          console.log('[Auth] SIGNED_IN ignorado - estamos em modo recuperação');
+          return;
+        }
         if (global.Meds) await global.Meds.carregar();
         if (global.location.hash !== '#/inicio') {
           global.location.hash = '#/inicio';
@@ -72,19 +89,30 @@
 
     // getSession processa os tokens da URL (se houver) e popula a sessão.
     // Com implicit flow isso acontece de forma síncrona dentro do getSession.
-    const { data } = await client.auth.getSession();
+    const { data, error } = await client.auth.getSession();
+    console.log('[Auth boot] getSession:', data.session ? 'com sessão' : 'sem sessão', error || '');
+    
     usuarioCache = mapearUsuario(data.session ? data.session.user : null);
     tokenGoogleCache = data.session ? data.session.provider_token || null : null;
 
-    // Se é recovery mas o onAuthStateChange ainda não redirecionou
-    // (pode acontecer se o evento já disparou antes do listener ser registrado),
-    // garantimos o redirect aqui com a sessão já estabelecida.
-    if (ehRecovery && data.session) {
+    // Se detectamos recovery no hash original e temos sessão, vamos para nova-senha.
+    // Isso cobre o caso onde o PASSWORD_RECOVERY já foi disparado antes do listener.
+    if (modoRecuperacao && data.session) {
+      console.log('[Auth boot] Recovery com sessão, forçando #/nova-senha');
       global.location.hash = '#/nova-senha';
       return usuarioCache;
     }
 
-    if (usuarioCache && global.Meds && !ehRecovery) {
+    // Se detectamos recovery mas NÃO temos sessão, algo deu errado.
+    // O Supabase deveria ter criado a sessão a partir dos tokens da URL.
+    if (modoRecuperacao && !data.session) {
+      console.error('[Auth boot] Recovery sem sessão! Tokens podem ter expirado.');
+      // Ainda assim, tentamos ir para nova-senha para mostrar erro amigável
+      global.location.hash = '#/nova-senha';
+      return null;
+    }
+
+    if (usuarioCache && global.Meds && !modoRecuperacao) {
       await global.Meds.carregar();
     }
     return usuarioCache;
@@ -147,12 +175,15 @@
   }
 
   // Envia e-mail com link de recuperação de senha para o endereço informado.
-  // O link redireciona para /#/nova-senha, onde o usuário digita a nova senha.
+  // O link redireciona para a origem do app, onde o boot() detecta type=recovery
+  // no hash e redireciona para a tela de nova senha.
+  // NÃO colocamos /#/nova-senha no redirectTo porque o Supabase substitui
+  // tudo após o # pelos tokens (access_token, type=recovery, etc).
   async function solicitarRecuperacao(email) {
     email = (email || '').trim().toLowerCase();
     if (!validarEmail(email)) throw new Error('E-mail inválido.');
     const { error } = await client.auth.resetPasswordForEmail(email, {
-      redirectTo: global.location.origin + '/#/nova-senha',
+      redirectTo: global.location.origin,
     });
     if (error) throw new Error(traduzirErro(error));
   }
@@ -207,6 +238,7 @@
     sair,
     usuarioAtual,
     estaLogado,
+    emRecuperacao,
     validarEmail,
   };
 })(window);
