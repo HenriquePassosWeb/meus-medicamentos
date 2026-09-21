@@ -104,13 +104,17 @@
   // Aguarda a sessão do Supabase carregar antes do primeiro render.
   // Sem isso, estaLogado() retornaria false no boot mesmo com sessão válida.
   Auth.boot().then(() => {
-    // Se o boot já redirecionou para #/nova-senha (fluxo de recovery),
-    // não sobrescrever o hash — só renderizar a tela atual.
-    if (global.location.hash === '#/nova-senha') {
-      render();
+    // Durante o fluxo de recovery, o hash pode conter tokens do Supabase
+    // (ex: #access_token=...&type=recovery) ou já ter sido trocado para
+    // #/nova-senha pelo onAuthStateChange. Em ambos os casos não tocamos.
+    const hash = global.location.hash || '';
+    if (hash.includes('type=recovery') || hash === '#/nova-senha') {
+      // O onAuthStateChange do boot já vai (ou já fez) o redirect para #/nova-senha.
+      // Se já chegou lá, renderizamos. Se não, o hashchange vai capturar.
+      if (hash === '#/nova-senha') render();
       return;
     }
-    if (!global.location.hash) {
+    if (!hash) {
       global.location.hash = Auth.estaLogado() ? '#/inicio' : '#/login';
       if (!global.location.hash) render();
     } else {

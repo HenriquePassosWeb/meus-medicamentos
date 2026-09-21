@@ -34,43 +34,33 @@
   // Deve ser aguardado no boot do app (app.js) antes do primeiro render.
   // Se houver sessão, já carrega os dados do usuário (Meds.carregar) antes de retornar.
   async function boot() {
-    // Detecta antecipadamente se a URL contém tokens de recuperação de senha
-    // (type=recovery no hash). O Supabase processa esses tokens no getSession(),
-    // e depois dispara onAuthStateChange — mas às vezes como SIGNED_IN em vez de
-    // PASSWORD_RECOVERY. Guardar a flag antes garante o redirect correto.
+    // Com implicit flow, o link de reset chega com tokens no hash:
+    // #access_token=...&refresh_token=...&type=recovery
+    // NÃO alteramos o hash aqui — o Supabase precisa ler os tokens do hash
+    // original antes de qualquer redirect. O onAuthStateChange dispara
+    // PASSWORD_RECOVERY assim que os tokens são processados, e aí redirecionamos.
     const hashAtual = global.location.hash || '';
     const ehRecovery = hashAtual.includes('type=recovery');
 
-    const { data } = await client.auth.getSession();
-    usuarioCache = mapearUsuario(data.session ? data.session.user : null);
-    tokenGoogleCache = data.session ? data.session.provider_token || null : null;
-
-    // Se veio do link de reset, redireciona para a tela de nova senha
-    // imediatamente, antes mesmo do onAuthStateChange disparar.
-    if (ehRecovery) {
-      global.location.hash = '#/nova-senha';
-    }
-
+    // Registra o listener ANTES de chamar getSession, para não perder eventos
+    // que disparem durante o processamento dos tokens da URL.
     client.auth.onAuthStateChange(async (evento, sessao) => {
       usuarioCache = mapearUsuario(sessao ? sessao.user : null);
-      // Captura o token do Google quando presente (vem no login com Google).
       if (sessao && sessao.provider_token) {
         tokenGoogleCache = sessao.provider_token;
       }
       if (!sessao) tokenGoogleCache = null;
 
-      // Supabase dispara PASSWORD_RECOVERY quando o usuário chegou pelo link
-      // de reset de senha. Redirecionamos para a tela de nova senha.
+      // Supabase dispara PASSWORD_RECOVERY quando os tokens de reset foram
+      // processados com sucesso. Só agora é seguro redirecionar — a sessão
+      // temporária já está estabelecida.
       if (evento === 'PASSWORD_RECOVERY') {
         global.location.hash = '#/nova-senha';
         return;
       }
 
-      // Ao entrar (inclusive na volta do login com Google), carrega os dados e
-      // leva o app para a tela inicial. Sem isso, o retorno do OAuth ficaria na
-      // tela de login mesmo com sessão válida.
-      // Se estamos no fluxo de recovery, ignoramos o SIGNED_IN para não sair
-      // da tela de nova senha.
+      // SIGNED_IN: não redirecionar se já estamos na tela de nova senha
+      // (pode disparar junto com o PASSWORD_RECOVERY em algumas versões).
       if (evento === 'SIGNED_IN') {
         if (global.location.hash === '#/nova-senha') return;
         if (global.Meds) await global.Meds.carregar();
@@ -79,6 +69,20 @@
         }
       }
     });
+
+    // getSession processa os tokens da URL (se houver) e popula a sessão.
+    // Com implicit flow isso acontece de forma síncrona dentro do getSession.
+    const { data } = await client.auth.getSession();
+    usuarioCache = mapearUsuario(data.session ? data.session.user : null);
+    tokenGoogleCache = data.session ? data.session.provider_token || null : null;
+
+    // Se é recovery mas o onAuthStateChange ainda não redirecionou
+    // (pode acontecer se o evento já disparou antes do listener ser registrado),
+    // garantimos o redirect aqui com a sessão já estabelecida.
+    if (ehRecovery && data.session) {
+      global.location.hash = '#/nova-senha';
+      return usuarioCache;
+    }
 
     if (usuarioCache && global.Meds && !ehRecovery) {
       await global.Meds.carregar();
