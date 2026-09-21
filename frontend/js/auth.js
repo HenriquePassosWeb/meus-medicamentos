@@ -48,16 +48,10 @@
     // Isso garante que sabemos se era um fluxo de recovery mesmo após o Supabase
     // ter processado e removido os tokens da URL.
     modoRecuperacao = global._supabaseRecoveryDetected || false;
-    
-    // Debug: logar para diagnóstico
-    console.log('[Auth boot] modoRecuperacao (via flag):', modoRecuperacao);
-    console.log('[Auth boot] hash atual:', global.location.hash);
 
     // Registra o listener ANTES de chamar getSession, para não perder eventos
     // que disparem durante o processamento dos tokens da URL.
     client.auth.onAuthStateChange(async (evento, sessao) => {
-      console.log('[Auth] onAuthStateChange:', evento, sessao ? 'com sessão' : 'sem sessão');
-      
       usuarioCache = mapearUsuario(sessao ? sessao.user : null);
       if (sessao && sessao.provider_token) {
         tokenGoogleCache = sessao.provider_token;
@@ -67,7 +61,6 @@
       // Supabase dispara PASSWORD_RECOVERY quando os tokens de reset foram
       // processados com sucesso. Redireciona para a tela de nova senha.
       if (evento === 'PASSWORD_RECOVERY') {
-        console.log('[Auth] PASSWORD_RECOVERY detectado, redirecionando para #/nova-senha');
         modoRecuperacao = true;
         global.location.hash = '#/nova-senha';
         return;
@@ -77,7 +70,6 @@
       // (a sessão é estabelecida antes do PASSWORD_RECOVERY em alguns casos).
       if (evento === 'SIGNED_IN') {
         if (modoRecuperacao || global.location.hash === '#/nova-senha') {
-          console.log('[Auth] SIGNED_IN ignorado - estamos em modo recuperação');
           return;
         }
         if (global.Meds) await global.Meds.carregar();
@@ -89,8 +81,7 @@
 
     // getSession processa os tokens da URL (se houver) e popula a sessão.
     // Com implicit flow isso acontece de forma síncrona dentro do getSession.
-    const { data, error } = await client.auth.getSession();
-    console.log('[Auth boot] getSession:', data.session ? 'com sessão' : 'sem sessão', error || '');
+    const { data } = await client.auth.getSession();
     
     usuarioCache = mapearUsuario(data.session ? data.session.user : null);
     tokenGoogleCache = data.session ? data.session.provider_token || null : null;
@@ -98,7 +89,6 @@
     // Se detectamos recovery no hash original e temos sessão, vamos para nova-senha.
     // Isso cobre o caso onde o PASSWORD_RECOVERY já foi disparado antes do listener.
     if (modoRecuperacao && data.session) {
-      console.log('[Auth boot] Recovery com sessão, forçando #/nova-senha');
       global.location.hash = '#/nova-senha';
       return usuarioCache;
     }
@@ -106,7 +96,6 @@
     // Se detectamos recovery mas NÃO temos sessão, algo deu errado.
     // O Supabase deveria ter criado a sessão a partir dos tokens da URL.
     if (modoRecuperacao && !data.session) {
-      console.error('[Auth boot] Recovery sem sessão! Tokens podem ter expirado.');
       // Ainda assim, tentamos ir para nova-senha para mostrar erro amigável
       global.location.hash = '#/nova-senha';
       return null;
