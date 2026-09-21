@@ -45,6 +45,14 @@
         tokenGoogleCache = sessao.provider_token;
       }
       if (!sessao) tokenGoogleCache = null;
+
+      // Supabase dispara PASSWORD_RECOVERY quando o usuário chegou pelo link
+      // de reset de senha. Redirecionamos para a tela de nova senha.
+      if (evento === 'PASSWORD_RECOVERY') {
+        global.location.hash = '#/nova-senha';
+        return;
+      }
+
       // Ao entrar (inclusive na volta do login com Google), carrega os dados e
       // leva o app para a tela inicial. Sem isso, o retorno do OAuth ficaria na
       // tela de login mesmo com sessão válida.
@@ -118,6 +126,27 @@
     // O navegador é redirecionado para o Google; o retorno é tratado no boot().
   }
 
+  // Envia e-mail com link de recuperação de senha para o endereço informado.
+  // O link redireciona para /#/nova-senha, onde o usuário digita a nova senha.
+  async function solicitarRecuperacao(email) {
+    email = (email || '').trim().toLowerCase();
+    if (!validarEmail(email)) throw new Error('E-mail inválido.');
+    const { error } = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: global.location.origin + '/#/nova-senha',
+    });
+    if (error) throw new Error(traduzirErro(error));
+  }
+
+  // Atualiza a senha do usuário autenticado pela sessão de recuperação.
+  // Chamado na tela #/nova-senha, após o usuário clicar no link do e-mail.
+  async function atualizarSenha(novaSenha) {
+    if (!novaSenha || novaSenha.length < 6) {
+      throw new Error('A senha precisa ter ao menos 6 caracteres.');
+    }
+    const { error } = await client.auth.updateUser({ password: novaSenha });
+    if (error) throw new Error(traduzirErro(error));
+  }
+
   async function sair() {
     await client.auth.signOut();
     usuarioCache = null;
@@ -153,6 +182,8 @@
     entrar,
     entrarComGoogle,
     tokenGoogle,
+    solicitarRecuperacao,
+    atualizarSenha,
     sair,
     usuarioAtual,
     estaLogado,

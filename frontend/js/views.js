@@ -34,6 +34,7 @@
           </label>
           <p class="auth-erro" id="aErro" hidden></p>
           <button type="submit" class="btn btn-primario btn-bloco">${modoCadastro ? 'Criar conta' : 'Entrar'}</button>
+          ${!modoCadastro ? '<p class="auth-esqueceu"><a href="#" id="aEsqueceu">Esqueceu a senha?</a></p>' : ''}
         </form>
 
         <div class="auth-ou"><span>ou</span></div>
@@ -64,6 +65,69 @@
           erro.hidden = false;
         }
       });
+
+      // Link "Esqueceu a senha?" — só aparece no modo login, não no cadastro.
+      const linkEsqueceu = document.getElementById('aEsqueceu');
+      if (linkEsqueceu) {
+        linkEsqueceu.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          mostrarRecuperacao();
+        });
+      }
+
+      function mostrarRecuperacao() {
+        root.innerHTML = `
+        <div class="auth">
+          <div class="auth-logo">🔑</div>
+          <h1 class="auth-titulo">Recuperar senha</h1>
+          <p class="auth-sub">Informe seu e-mail e enviaremos um link para você criar uma nova senha.</p>
+          <form class="auth-form" id="recForm">
+            <label class="campo">
+              <span class="campo-label">E-mail</span>
+              <input type="email" id="recEmail" class="campo-input" placeholder="voce@email.com" autocomplete="email" />
+            </label>
+            <p class="auth-erro" id="recErro" hidden></p>
+            <button type="submit" class="btn btn-primario btn-bloco">Enviar link de recuperação</button>
+          </form>
+          <p class="auth-troca"><a href="#" id="recVoltar">← Voltar para o login</a></p>
+        </div>`;
+
+        document.getElementById('recVoltar').addEventListener('click', (ev) => {
+          ev.preventDefault();
+          render();
+        });
+
+        document.getElementById('recForm').addEventListener('submit', async (ev) => {
+          ev.preventDefault();
+          const erro = document.getElementById('recErro');
+          erro.hidden = true;
+          const btn = ev.target.querySelector('button[type="submit"]');
+          btn.disabled = true;
+          try {
+            const email = document.getElementById('recEmail').value;
+            await Auth.solicitarRecuperacao(email);
+            // Mostra confirmação sem revelar se o e-mail existe ou não (segurança).
+            root.innerHTML = `
+            <div class="auth">
+              <div class="auth-logo">📧</div>
+              <h1 class="auth-titulo">Link enviado</h1>
+              <p class="auth-sub">Se esse e-mail tiver uma conta cadastrada, você receberá um link para criar uma nova senha em instantes.</p>
+              <p class="auth-sub">Verifique também sua pasta de spam.</p>
+              <div class="auth-form">
+                <button type="button" class="btn btn-primario btn-bloco" id="recVoltarLogin">Voltar para o login</button>
+              </div>
+            </div>`;
+            document.getElementById('recVoltarLogin').addEventListener('click', () => {
+              modoCadastro = false;
+              render();
+            });
+          } catch (e) {
+            erro.textContent = e.message;
+            erro.hidden = false;
+            btn.disabled = false;
+          }
+        });
+      }
 
       function mostrarConfirmacaoEmail(email) {
         root.innerHTML = `
@@ -777,5 +841,57 @@
     global.addEventListener('estoque:mudou', handler);
   }
 
-  global.Views = { login, inicio, consulta, historico, agendamentos, compartilhar, ajustes };
+  // ---------- NOVA SENHA (reset via link do e-mail) ----------
+  // Exibida quando o usuário chega pelo link de recuperação. O Supabase já
+  // autenticou a sessão temporária; basta chamar updateUser com a nova senha.
+  function novaSenha(root, ir) {
+    root.innerHTML = `
+    <div class="auth">
+      <div class="auth-logo">🔑</div>
+      <h1 class="auth-titulo">Nova senha</h1>
+      <p class="auth-sub">Digite sua nova senha abaixo.</p>
+      <form class="auth-form" id="nsForm">
+        <label class="campo">
+          <span class="campo-label">Nova senha</span>
+          <input type="password" id="nsSenha" class="campo-input" placeholder="Mínimo 6 caracteres"
+            autocomplete="new-password" minlength="6" />
+        </label>
+        <label class="campo">
+          <span class="campo-label">Confirmar nova senha</span>
+          <input type="password" id="nsConfirmar" class="campo-input" placeholder="Repita a senha"
+            autocomplete="new-password" minlength="6" />
+        </label>
+        <p class="auth-erro" id="nsErro" hidden></p>
+        <button type="submit" class="btn btn-primario btn-bloco">Salvar nova senha</button>
+      </form>
+    </div>`;
+
+    document.getElementById('nsForm').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const erro = document.getElementById('nsErro');
+      erro.hidden = true;
+      const senha = document.getElementById('nsSenha').value;
+      const confirmar = document.getElementById('nsConfirmar').value;
+      if (senha !== confirmar) {
+        erro.textContent = 'As senhas não coincidem.';
+        erro.hidden = false;
+        return;
+      }
+      const btn = ev.target.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      try {
+        await Auth.atualizarSenha(senha);
+        // Sai da sessão temporária de recuperação e leva para o login.
+        await Auth.sair();
+        // Mostra mensagem de sucesso na tela de login via hash personalizado.
+        ir('#/login?senha-alterada=1');
+      } catch (e) {
+        erro.textContent = e.message;
+        erro.hidden = false;
+        btn.disabled = false;
+      }
+    });
+  }
+
+  global.Views = { login, inicio, consulta, historico, agendamentos, compartilhar, ajustes, novaSenha };
 })(window);

@@ -7,6 +7,7 @@
 
   const ROTAS = {
     '#/login': { view: Views.login, publica: true, nav: false },
+    '#/nova-senha': { view: Views.novaSenha, publica: true, nav: false },
     '#/inicio': { view: Views.inicio, nav: 'inicio' },
     '#/consulta': { view: Views.consulta, nav: 'consulta' },
     '#/agendamentos': { view: Views.agendamentos, nav: 'agendamentos' },
@@ -40,7 +41,11 @@
 
   function render() {
     let hash = global.location.hash || '#/inicio';
-    let rota = ROTAS[hash];
+
+    // O Supabase adiciona parâmetros após o hash no link de reset.
+    // Ex: #/nova-senha ou #/login?senha-alterada=1 — extraímos só o path.
+    const hashPath = hash.split('?')[0];
+    let rota = ROTAS[hashPath];
 
     // rota inexistente
     if (!rota) {
@@ -48,12 +53,22 @@
       rota = ROTAS[hash];
     }
 
+    // A tela de nova senha é pública e tem precedência — não redirecionar.
+    if (hashPath === '#/nova-senha') {
+      tela.innerHTML = '';
+      tela.scrollTop = 0;
+      global.scrollTo(0, 0);
+      rota.view(tela, ir);
+      renderNav(null);
+      return;
+    }
+
     // proteção de rota
     if (!rota.publica && !Auth.estaLogado()) {
       global.location.hash = '#/login';
       return;
     }
-    if (hash === '#/login' && Auth.estaLogado()) {
+    if (hashPath === '#/login' && Auth.estaLogado()) {
       global.location.hash = '#/inicio';
       return;
     }
