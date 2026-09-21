@@ -264,6 +264,8 @@ body.com-nav #tela {
 .auth-erro { color: var(--cor-perigo); font-size: 13px; text-align: center; }
 .auth-troca { margin-top: 18px; font-size: 14px; color: var(--cor-texto-suave); }
 .auth-troca a { color: var(--cor-primaria); font-weight: 600; text-decoration: none; }
+.auth-esqueceu { margin-top: 4px; font-size: 13px; text-align: center; }
+.auth-esqueceu a { color: var(--cor-texto-suave); text-decoration: underline; }
 
 /* Separador "ou" e botão do Google na tela de login */
 .auth-ou {
