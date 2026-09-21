@@ -104,14 +104,18 @@
   // Aguarda a sessão do Supabase carregar antes do primeiro render.
   // Sem isso, estaLogado() retornaria false no boot mesmo com sessão válida.
   Auth.boot().then(() => {
+    // Se o boot já redirecionou para #/nova-senha (fluxo de recovery),
+    // não sobrescrever o hash — só renderizar a tela atual.
+    if (global.location.hash === '#/nova-senha') {
+      render();
+      return;
+    }
     if (!global.location.hash) {
       global.location.hash = Auth.estaLogado() ? '#/inicio' : '#/login';
-      // se o hash não mudou (já era vazio -> definimos), força o render inicial
       if (!global.location.hash) render();
     } else {
       render();
     }
-    // garante render caso a atribuição de hash acima não dispare hashchange
     if (global.location.hash) render();
   });
 })(window);
